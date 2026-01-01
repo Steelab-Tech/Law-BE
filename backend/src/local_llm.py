@@ -14,7 +14,7 @@ class LocalLLM:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, model_id: str = "1TuanPham/T-VisStar-7B-v0.1", device: str = "cuda:1"):
+    def __init__(self, model_id: str = "1TuanPham/T-VisStar-7B-v0.1", device: str = "cuda:0"):
         if self._initialized:
             return
 

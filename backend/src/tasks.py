@@ -18,6 +18,28 @@ celery_app = get_celery_app(__name__)
 celery_app.autodiscover_tasks()
 
 
+def filter_history_for_llm(history):
+    """Filter and fix history to ensure proper user/assistant alternation."""
+    # Remove system messages from history (we'll add our own)
+    filtered = [msg for msg in history if msg.get("role") != "system"]
+
+    # Ensure alternating pattern - merge consecutive messages of same role
+    if not filtered:
+        return []
+
+    result = []
+    for msg in filtered:
+        if not result:
+            result.append(msg)
+        elif result[-1]["role"] == msg["role"]:
+            # Merge consecutive messages of same role
+            result[-1]["content"] += "\n" + msg["content"]
+        else:
+            result.append(msg)
+
+    return result
+
+
 @shared_task()
 def bot_answer_message(history, message):
     user_intent = detect_user_intent(history, message)
@@ -42,26 +64,30 @@ def bot_answer_message(history, message):
         print("Error:", response.status_code, response.text)
         top_docs = []
 
-    # Use history as messages
-    session_history = copy(history)
+    # Filter history to ensure proper alternation (no system, no consecutive same roles)
+    clean_history = filter_history_for_llm(history)
 
-    messages = [
-            {
-                "role": "system",
-                "content": """Bạn là một trợ lý thông minh, hãy trở lời câu hỏi hiện tại của user dựa trên lịch sử chat và các tài liệu liên quan.
-                            Câu trả lời phải ngắn gọn, chính xác nhưng vẫn đảm bảo đầy đủ các ý chính.
-                NOTE:  - Hãy chỉ trả lời nếu câu trả lời nằm trong tài liệu được truy xuất ra.
-                       - Nếu không tìm thấy câu trả lời trong tài liệu truy xuất ra thì hãy trả về : "no"
-                        """
-            },
-            *session_history
-        ]
+    # Build RAG messages with proper structure
+    doc_prompt = gen_doc_prompt(top_docs)
+    combined_user_content = f"{doc_prompt}\n\nCâu hỏi của người dùng: {message}"
 
-    # Update documents to prompt
-    rag_messages = messages +  [
-            {"role": "user", "content": gen_doc_prompt(top_docs)},
-            {"role": "user", "content": message},
-        ]
+    # Ensure history ends with assistant before adding new user message
+    if clean_history and clean_history[-1]["role"] == "user":
+        # Remove last user message or merge with new content
+        clean_history = clean_history[:-1]
+
+    rag_messages = [
+        {
+            "role": "system",
+            "content": """Bạn là một trợ lý thông minh, hãy trở lời câu hỏi hiện tại của user dựa trên lịch sử chat và các tài liệu liên quan.
+                        Câu trả lời phải ngắn gọn, chính xác nhưng vẫn đảm bảo đầy đủ các ý chính.
+            NOTE:  - Hãy chỉ trả lời nếu câu trả lời nằm trong tài liệu được truy xuất ra.
+                   - Nếu không tìm thấy câu trả lời trong tài liệu truy xuất ra thì hãy trả về : "no"
+                    """
+        },
+        *clean_history,
+        {"role": "user", "content": combined_user_content},
+    ]
 
     assistant_answer = llm_chat_complete(rag_messages, max_new_tokens=512, temperature=0.7)
 

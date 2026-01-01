@@ -124,10 +124,12 @@ def get_legal_agent_anwer(messages):
     logger.info(f"Search results: {search_results[:200]}...")
 
     # Add search results to messages and generate response
-    full_messages = messages + [{
-        "role": "user",
-        "content": search_results
-    }]
+    # Combine search results with original question to avoid consecutive user messages
+    combined_content = f"Kết quả tìm kiếm từ internet:\n{search_results}\n\nDựa trên kết quả trên, hãy trả lời câu hỏi: {user_question}"
+    full_messages = [
+        {"role": "system", "content": "Bạn là trợ lý pháp luật thông minh. Hãy trả lời câu hỏi dựa trên thông tin được cung cấp."},
+        {"role": "user", "content": combined_content}
+    ]
 
     response = llm_chat_complete(full_messages, max_new_tokens=512, temperature=0.7)
     return response
