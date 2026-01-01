@@ -9,7 +9,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # MongoDB client setup
-client = MongoClient("mongodb://194.93.48.55:27017/")
+client = MongoClient("mongodb://localhost:27017/")
 db = client["final_project"]
 chat_conversations = db["history_chat"]
 

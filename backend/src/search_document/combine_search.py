@@ -4,14 +4,14 @@ from search_document.search_elastic import search_data
 
 # Khởi tạo các search class ở cấp module để tái sử dụng
 bge_search_instance = QdrantSearch_bge(
-        host="http://194.93.48.55:6333",
+        host="http://localhost:6333",
         collection_name= "law_with_bge_round1",
         model_name="BAAI/bge-m3",
         use_fp16=True
     )
 
 e5_search_instance = QdrantSearch_e5(
-        host="http://194.93.48.55:6333",
+        host="http://localhost:6333",
         collection_name="law_with_e5_emb_not_finetune",
         model_name="intfloat/multilingual-e5-large",
         use_fp16=True

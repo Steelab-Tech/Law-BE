@@ -5,7 +5,7 @@ from elasticsearch import Elasticsearch
 # Kết nối tới Elasticsearch
 try:
     es = Elasticsearch(
-        ["http://194.93.48.55:9200"],
+        ["http://localhost:9200"],
     )
     
     # Kiểm tra kết nối

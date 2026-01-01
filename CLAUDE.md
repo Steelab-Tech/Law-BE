@@ -84,16 +84,16 @@ Required in `.env`:
 ```
 OPENAI_API_KEY=sk-...        # Required for GPT-4o-mini
 TAVILY_API_KEY=tvly-...      # Required for web search fallback
-CELERY_BROKER_URL=redis://194.93.48.55:6379
-CELERY_RESULT_BACKEND=redis://194.93.48.55:6379
+CELERY_BROKER_URL=redis://localhost:6379
+CELERY_RESULT_BACKEND=redis://localhost:6379
 ```
 
 ## Infrastructure Defaults
-- Backend API: port 8002
-- Qdrant: 194.93.48.55:6333
-- Elasticsearch: 194.93.48.55:9200
-- Redis: 194.93.48.55:6379
-- MongoDB: 194.93.48.55:27017
+- Backend API: port 8002 (public: http://194.93.48.55:8002)
+- Qdrant: localhost:6333
+- Elasticsearch: localhost:9200
+- Redis: localhost:6379
+- MongoDB: localhost:27017
 
 ## Database Collections & Indices
 
