@@ -11,17 +11,11 @@ A Vietnamese Law Question-Answering system implementing a multi-stage RAG (Retri
 **Install dependencies:**
 ```bash
 pip install -r backend/requirements.txt
-pip install -r chatbot-ui/requirements.txt
 ```
 
 **Run backend (FastAPI + Celery):**
 ```bash
 sh backend/entrypoint.sh
-```
-
-**Run frontend (Streamlit):**
-```bash
-sh chatbot-ui/entrypoint.sh
 ```
 
 **Fine-tune reranker model:**
@@ -45,7 +39,6 @@ python merge_with_base.py
 ### Project Structure
 ```
 backend/          # FastAPI backend with Celery async processing
-chatbot-ui/       # Streamlit frontend interface
 finetune_llm/     # LLM fine-tuning scripts (QLoRA with SFTTrainer)
 retrieval/        # Retrieval/reranker model training
 ```
@@ -58,13 +51,14 @@ retrieval/        # Retrieval/reranker model training
    - Multilingual-E5 dense search via Qdrant
    - Elasticsearch lexical search
 4. **Reranking** (`search_document/rerank.py`) - BGE Reranker scores top documents
-5. **LLM Generation** (`brain.py:detect_answer`) - GPT-4o-mini generates answer
+5. **LLM Generation** (`tasks.py:bot_answer_message`) - Local LLM generates answer with retrieved docs
 6. **Web Search Fallback** (`agent.py`) - Tavily search if RAG cannot answer
 
 ### Key Backend Files
 - `backend/src/app.py` - FastAPI endpoints (`/retrieval`, `/chat/complete`)
 - `backend/src/tasks.py` - Celery tasks for async message processing
 - `backend/src/brain.py` - Core LLM logic: intent detection, query rewriting, answer generation
+- `backend/src/local_llm.py` - Local LLM wrapper (4-bit quantized T-VisStar-7B)
 - `backend/src/agent.py` - ReAct agent with Tavily web search tool
 - `backend/src/search_document/` - All retrieval components (BGE, E5, Elasticsearch, reranker)
 
@@ -78,16 +72,46 @@ retrieval/        # Retrieval/reranker model training
 **Backend:** FastAPI, Celery, Redis (broker), MongoDB (chat history), Qdrant (vectors), Elasticsearch
 
 **Models:**
-- LLM: GPT-4o-mini (routing/generation), 1TuanPham/T-VisStar-7B-v0.1 (fine-tuned)
+- LLM: GPT-4o-mini (routing/rewriting), 1TuanPham/T-VisStar-7B-v0.1 (generation)
 - Embeddings: BAAI/BGE-M3, intfloat/multilingual-e5-large
 - Reranker: BGE-Reranker-v2-m3
 
 **Fine-tuning:** Transformers, PEFT (QLoRA), BitsAndBytes (4-bit quantization), TRL (SFTTrainer)
 
+## Environment Variables
+
+Required in `.env`:
+```
+OPENAI_API_KEY=sk-...        # Required for GPT-4o-mini
+TAVILY_API_KEY=tvly-...      # Required for web search fallback
+CELERY_BROKER_URL=redis://194.93.48.55:6379
+CELERY_RESULT_BACKEND=redis://194.93.48.55:6379
+```
+
 ## Infrastructure Defaults
 - Backend API: port 8002
-- Streamlit UI: port 8051
-- Qdrant: localhost:6333
-- Elasticsearch: localhost:9200
-- Redis: localhost:6379
-- MongoDB: 10.0.0.138:27017
+- Qdrant: 194.93.48.55:6333
+- Elasticsearch: 194.93.48.55:9200
+- Redis: 194.93.48.55:6379
+- MongoDB: 194.93.48.55:27017
+
+## Database Collections & Indices
+
+**Qdrant collections:**
+- `law_with_bge_round1` - BGE-M3 embeddings
+- `law_with_e5_emb_not_finetune` - Multilingual-E5 embeddings
+
+**Elasticsearch index:**
+- `legal_data_part2` - Lexical search index
+
+## Hardcoded Device Configuration
+
+The codebase has hardcoded GPU device assignments:
+- `local_llm.py` - Local LLM runs on `cuda:1`
+- `search_vietnamese_legal.py` - Vietnamese legal search runs on `cuda:0`
+
+Modify these if your GPU setup differs.
+
+## Testing
+
+No test suite is currently implemented. The `.gitignore` includes pytest patterns, indicating test infrastructure is planned but not yet in place.

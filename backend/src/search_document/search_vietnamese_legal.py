@@ -20,7 +20,7 @@ class VietnameseLegalSearch:
 
     def __init__(
         self,
-        host: str = "http://localhost:6333",
+        host: str = "http://194.93.48.55:6333",
         collection_name: str = "vietnamese_legal_docs",
         model_name: str = "minhquan6203/paraphrase-vietnamese-law",
         device: str = "cuda:0"

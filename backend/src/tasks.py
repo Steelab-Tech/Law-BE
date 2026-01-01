@@ -24,7 +24,7 @@ def bot_answer_message(history, message):
     logger.info(f"User intent: {user_intent}")
 
     # Call api retrieval relevance document
-    url = "http://127.0.0.1:8002/retrieval"
+    url = "http://194.93.48.55:8002/retrieval"
     payload = {
         "query": user_intent,
         "top_k_search": 30,
