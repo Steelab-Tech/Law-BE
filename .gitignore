@@ -86,3 +86,30 @@ htmlcov/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# HuggingFace
+.huggingface/
+
+# Weights & Biases
+wandb/
+
+# Transformers cache
+.transformers_cache/
+
+# FAISS index
+*.faiss
+
+# Node (if any frontend added later)
+node_modules/
+package-lock.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Pip artifacts
+=*
+
+# Claude Code instructions (local only)
+CLAUDE.md
