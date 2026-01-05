@@ -8,13 +8,13 @@ import json
 import tqdm
 import pickle
 
-# Function convert to list python
+# Function to convert string to list
 def convert_to_list(s):
-    s = s.strip('[]')  # Xóa dấu ngoặc vuông
-    elements = s.split()  # Tách thành từng phần tử
+    s = s.strip('[]')  # Remove square brackets
+    elements = s.split()  # Split into elements
     return [int(element) for element in elements]
 
-def convert_str_to_list(input_str):    
+def convert_str_to_list(input_str):
     try:
         result = ast.literal_eval(input_str)
         return result
@@ -23,27 +23,27 @@ def convert_str_to_list(input_str):
         return None
 
 def split_text_keeping_sentences(text, max_word_count):
-    # Tách văn bản thành các câu
+    # Split text into sentences
     sentences = re.split(r'(?<=[.!?]) +', text)
     chunks = []
     current_chunk = ""
     current_word_count = 0
 
     for sentence in sentences:
-        # Đếm số từ trong câu
+        # Count words in sentence
         word_count = len(sentence.split())
-        
-        # Nếu thêm câu vào chunk hiện tại sẽ vượt quá số lượng từ tối đa
+
+        # If adding sentence exceeds max word count
         if current_word_count + word_count > max_word_count:
-            # Thêm chunk hiện tại vào danh sách chunks
+            # Add current chunk to chunks list
             chunks.append(current_chunk.strip())
-            current_chunk = sentence  # Bắt đầu một chunk mới
-            current_word_count = word_count  # Đặt lại số lượng từ
+            current_chunk = sentence  # Start new chunk
+            current_word_count = word_count  # Reset word count
         else:
             current_chunk += " " + sentence.strip() if current_chunk else sentence.strip()
             current_word_count += word_count
 
-    # Thêm chunk còn lại nếu có
+    # Add remaining chunk if exists
     if current_chunk:
         chunks.append(current_chunk.strip())
 
@@ -54,7 +54,7 @@ class QdrantSearch_e5:
         self.client = QdrantClient(host)
         self.collection_name = collection_name
         self.model = SentenceTransformer(model_name, device="cuda:0")
-        
+
     def encode_query(self, query_text: str):
         """Encode the query text into dense and sparse vectors"""
         query_text = "query: "+ query_text
@@ -64,7 +64,7 @@ class QdrantSearch_e5:
     def search(self, query_text: str, limit: int = 20):
         """Perform the search in Qdrant with the given query text and retrieve up to 50 results"""
         dense_vec = self.encode_query(query_text)
-        
+
         prefetch = [
             models.Prefetch(
                 query=dense_vec,
@@ -72,7 +72,7 @@ class QdrantSearch_e5:
                 limit=limit,
             )
         ]
-        
+
         results = self.client.query_points(
             self.collection_name,
             prefetch=prefetch,
@@ -82,7 +82,7 @@ class QdrantSearch_e5:
             with_payload=True,
             limit=limit,
         )
-        
+
         return results
 
 class QuestionInference:
@@ -90,11 +90,11 @@ class QuestionInference:
         self.csv_path = csv_path
         self.save_pair_path = save_pair_path
         self.qdrant_search = qdrant_search
-    
+
     def load_questions(self):
         """Load questions and question_ids from CSV file"""
         self.questions = pd.read_csv(self.csv_path)
-    
+
     def infer_and_save(self):
         """Infer each question and save results to a .txt file"""
         save_pairs = []
@@ -132,18 +132,18 @@ class QuestionInference:
             pickle.dump(save_pairs, pair_file)
 
 if __name__ == "__main__":
-    # Đường dẫn file CSV đầu vào và file TXT đầu ra
-    csv_path = 'train.csv'  # Đường dẫn đến file CSV của bạn
-    output_path = '...'  # Đường dẫn đến file TXT đầu ra
-    
-    # Khởi tạo QdrantSearch
+    # Input CSV file path and output file path
+    csv_path = 'train.csv'  # Path to your CSV file
+    output_path = '...'  # Path to output file
+
+    # Initialize QdrantSearch
     qdrant_search = QdrantSearch_e5(
         host="http://localhost:6333",
         collection_name="law_with_e5_emb_not_finetune",
         model_name="intfloat/multilingual-e5-large",
         use_fp16=True
     )
-    # # Khởi tạo và thực thi quá trình infer
+    # Initialize and execute inference process
     inference = QuestionInference(csv_path, output_path, qdrant_search)
     inference.load_questions()
     inference.infer_and_save()

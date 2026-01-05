@@ -2,13 +2,13 @@ import json
 from elasticsearch import Elasticsearch
 
 
-# Kết nối tới Elasticsearch
+# Connect to Elasticsearch
 try:
     es = Elasticsearch(
         ["http://localhost:9200"],
     )
-    
-    # Kiểm tra kết nối
+
+    # Check connection
     if es.ping():
         print("Connected to Elasticsearch!")
     else:
@@ -16,25 +16,25 @@ try:
 except ConnectionError as e:
     print(f"Error connecting to Elasticsearch: {e}")
 
-# Hàm tìm kiếm dữ liệu trong Elasticsearch
+# Search function for Elasticsearch
 def search_data(index_name, query, top_k=10):
-    # Thực hiện tìm kiếm với giới hạn top_k
+    # Perform search with top_k limit
     response = es.search(
         index=index_name,
         body={
             "query": {
                 "match": {
-                    "text": query  # Tìm kiếm theo nội dung văn bản
+                    "text": query  # Search by text content
                 }
             },
             "sort": [
-                {"_score": {"order": "desc"}}  # Sắp xếp theo điểm số giảm dần
+                {"_score": {"order": "desc"}}  # Sort by score descending
             ],
-            "size": top_k  # Chỉ định số lượng kết quả muốn lấy ra
+            "size": top_k  # Limit number of results
         }
     )
 
-    # Lấy kết quả từ response
+    # Extract results from response
     results = []
     for hit in response["hits"]["hits"]:
         results.append({
@@ -42,5 +42,3 @@ def search_data(index_name, query, top_k=10):
         })
 
     return results
-
-

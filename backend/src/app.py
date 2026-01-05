@@ -14,13 +14,13 @@ from search_document.rerank import BGEReranker
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# init reranker (search is lazy-loaded)
+# Initialize reranker (search is lazy-loaded)
 reranker_instance = BGEReranker(model_name="BAAI/bge-reranker-v2-m3", use_fp16=True)
 
 
 app = FastAPI()
 
-# define class name
+# Request models
 class CompleteRequest(BaseModel):
     bot_id: Optional[str] = 'bot_Legal_VN'
     user_id: str
@@ -40,15 +40,15 @@ async def root():
 @app.post("/retrieval")
 async def retrieval(request: RetrievalRequest):
     try:
-        # Lấy dữ liệu từ body
+        # Extract request data
         query = request.query
         top_k_search = request.top_k_search
         top_k_rerank = request.top_k_rerank
 
-        # Thực hiện tìm kiếm bằng Vietnamese Legal Search
+        # Perform Vietnamese legal document search
         search_results = search_vietnamese_legal(query, top_k=top_k_search)
 
-        # Thực hiện rerank kết quả tìm kiếm
+        # Rerank search results
         reranked_results = reranker_instance.rerank(query=query, documents=search_results, topk=top_k_rerank)
 
         return {
@@ -80,26 +80,26 @@ async def complete(data: CompleteRequest):
 @app.get("/chat/complete_v2/{task_id}")
 async def get_response(task_id: str):
     start_time = time.time()
-    timeout = 60  # Timeout sau 60 giây
-    polling_interval = 0.1  # Thời gian chờ giữa mỗi lần kiểm tra (100ms)
-    
+    timeout = 60  # Timeout in seconds
+    polling_interval = 0.1  # Polling interval (100ms)
+
     while True:
-        # Lấy trạng thái task từ Celery
+        # Get task status from Celery
         task_result = AsyncResult(task_id)
         task_status = task_result.status
-        
-        # Ghi log trạng thái task
+
+        # Log task status
         logger.info(f"Task ID: {task_id}, Status: {task_status}")
-        
-        # Nếu task đã hoàn tất, trả về kết quả
+
+        # If task is complete, return result
         if task_status not in ('PENDING', 'STARTED'):
             return {
                 "task_id": task_id,
                 "task_status": task_status,
                 "task_result": task_result.result
             }
-        
-        # Kiểm tra timeout
+
+        # Check timeout
         elapsed_time = time.time() - start_time
         if elapsed_time > timeout:
             logger.warning(f"Task {task_id} timed out after {timeout} seconds.")
@@ -108,11 +108,10 @@ async def get_response(task_id: str):
                 "task_status": task_status,
                 "error_message": "Service timeout, please retry."
             }
-        
-        # Chờ trước khi kiểm tra lại
+
+        # Wait before checking again
         await asyncio.sleep(polling_interval)
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=8002, workers=1, log_level="info")
-

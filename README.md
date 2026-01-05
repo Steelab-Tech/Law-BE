@@ -2,6 +2,8 @@
 
 A production-ready RAG (Retrieval-Augmented Generation) system for Vietnamese legal document question answering. Built with FastAPI, Celery, and local LLM inference.
 
+**Dataset**: [vietnamese-legal-corpus-20k-raw](https://huggingface.co/datasets/52100303-TranPhuocSang/vietnamese-legal-corpus-20k-raw)
+
 ## Features
 
 - Multi-stage RAG pipeline with intent routing and query rewriting

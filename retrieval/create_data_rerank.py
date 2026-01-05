@@ -16,11 +16,11 @@ class QuestionInference:
         self.save_pair_path = save_pair_path
         self.qdrant_search_bge = qdrant_search_bge
         self.qdrant_search_e5 = qdrant_search_e5
-    
+
     def load_questions(self):
         """Load questions and question_ids from CSV file"""
         self.questions = pd.read_csv(self.csv_path)
-    
+
     def infer_and_save(self):
         """Infer each question and save results to json file"""
         file_name = "data_reranking"
@@ -29,7 +29,7 @@ class QuestionInference:
                 question = row.question
                 list_id = convert_to_list(row.cid)
                 list_context = convert_str_to_list(row.context)
-                # create_data for bge
+                # Create data for BGE
                 save_dict = {}
                 save_dict["query"] = question
                 save_dict["pos"] = []
@@ -40,16 +40,16 @@ class QuestionInference:
 
                 results_bge = self.qdrant_search_bge.search(query_text=question, limit=25)
                 result_e5 = self.qdrant_search_e5.search(query_text=question, limit=25)
-                
+
                 list_chunk_id = []
                 for results in [results_bge, result_e5]:
                     for result in results.points:
-                        # nếu là positive thì bỏ qua không append vào nữa.
+                        # If positive, skip and don't append
                         infor_id = int(result.payload["infor_id"])
                         if infor_id in list_id:
                             continue
 
-                        # nếu không phải id của positive thì check xem text này đã append hay chưa => chưa thì append vào list negative
+                        # If not positive ID, check if text already appended -> if not, append to negative list
                         else:
                             if result.payload["chunk_id"] not in list_chunk_id:
                                 text = result.payload["text"]
@@ -62,11 +62,11 @@ class QuestionInference:
 
 
 if __name__ == "__main__":
-    # Đường dẫn file CSV đầu vào và file TXT đầu ra
-    csv_path = 'train_data.csv'  # Đường dẫn đến file CSV của bạn
-    output_path = '/format_data/rerank'  # Đường dẫn đến file TXT đầu ra
-    
-    # Khởi tạo QdrantSearch
+    # Input CSV file path and output file path
+    csv_path = 'train_data.csv'  # Path to your CSV file
+    output_path = '/format_data/rerank'  # Path to output file
+
+    # Initialize QdrantSearch
     qdrant_search_bge = QdrantSearch_bge(
         host="http://localhost:6333",
         collection_name="law_with_bge_round1",

@@ -2,7 +2,7 @@ from search_document.search_with_bge import QdrantSearch_bge
 from search_document.search_with_e5 import QdrantSearch_e5
 from search_document.search_elastic import search_data
 
-# Khởi tạo các search class ở cấp module để tái sử dụng
+# Initialize search instances at module level for reuse
 bge_search_instance = QdrantSearch_bge(
         host="http://localhost:6333",
         collection_name= "law_with_bge_round1",
@@ -59,7 +59,7 @@ class CombinedSearch:
         # Process Elasticsearch results
         for result in elastic_results:
             combined_results.append(result['text'])
-            
+
         combined_results = list(set(combined_results))
 
         return combined_results

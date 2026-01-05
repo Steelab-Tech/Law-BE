@@ -9,19 +9,19 @@ from llama_index.core.base.llms.types import MessageRole, ChatMessage
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import BaseTool, FunctionTool
 
-_ = load_dotenv(find_dotenv()) # read local .env file
+_ = load_dotenv(find_dotenv())  # Read local .env file
 openai.api_key = os.environ['OPENAI_API_KEY']
 
 tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
 
 def search(query):
-    # get 3 first links
+    # Get first 3 search results
     output_search = tavily_client.search(query).get('results')[:3]
-    # Xử lý kết quả tìm kiếm thành chuỗi tài liệu
-    search_document = "Dưới đây là các tài liệu truy xuất được từ internet: \n"
+    # Process search results into document string
+    search_document = "Below are documents retrieved from the internet: \n"
     for i, doc in enumerate(output_search):
         search_document += f"{i+1}. {doc.get('content', '')} \n"
-    search_document += "Kết thúc phần tài liệu truy xuất được."
+    search_document += "End of retrieved documents."
     return search_document
 
 search_tool = FunctionTool.from_defaults(fn=search)
