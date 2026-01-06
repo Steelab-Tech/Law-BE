@@ -8,6 +8,12 @@ from transformers import AutoTokenizer, pipeline, AutoModelForCausalLM, BitsAndB
 from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling, AutoModel
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from trl import setup_chat_format, SFTTrainer
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Default model configuration
+DEFAULT_MODEL_ID = "1TuanPham/T-VisStar-7B-v0.1"
 
 # login wandb
 wandb.login(key="297fe8ac2e7")
@@ -166,7 +172,7 @@ class TrainerClass:
 
 # Example usage
 if __name__ == "__main__":
-    base_model_id = "1TuanPham/T-VisStar-7B-v0.1"
+    base_model_id = os.getenv("LLM_MODEL_ID", DEFAULT_MODEL_ID)
     output_dir = "output_ckp"
     train_csv = 'gen_data/train.csv'
     test_csv = 'gen_data/test.csv'

@@ -1,9 +1,17 @@
+import os
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from typing import List, Dict
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Default model configuration
+DEFAULT_MODEL_ID = "1TuanPham/T-VisStar-7B-v0.1"
+DEFAULT_DEVICE = "cuda:0"
 
 class LocalLLM:
     _instance = None
@@ -14,7 +22,9 @@ class LocalLLM:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, model_id: str = "1TuanPham/T-VisStar-7B-v0.1", device: str = "cuda:0"):
+    def __init__(self, model_id: str = None, device: str = None):
+        model_id = model_id or os.getenv("LLM_MODEL_ID", DEFAULT_MODEL_ID)
+        device = device or os.getenv("LLM_DEVICE", DEFAULT_DEVICE)
         if self._initialized:
             return
 

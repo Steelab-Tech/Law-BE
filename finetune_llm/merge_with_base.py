@@ -1,8 +1,15 @@
 import argparse
+import os
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 import torch
 from trl import setup_chat_format
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Default model configuration
+DEFAULT_MODEL_ID = "1TuanPham/T-VisStar-7B-v0.1"
 
 def main(args):
     # Load tokenizer from base model or LoRA model if special tokens were added
@@ -36,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--base_model_path",
         type=str,
-        default="1TuanPham/T-VisStar-7B-v0.1",
+        default=os.getenv("LLM_MODEL_ID", DEFAULT_MODEL_ID),
         help="Path to the base model"
     )
     parser.add_argument(
