@@ -1,12 +1,21 @@
 """
 Simple search module for vietnamese_legal_docs collection
 Uses: minhquan6203/paraphrase-vietnamese-law embedding model
+Supports both local Qdrant and Qdrant Cloud
 """
+import os
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
 import logging
 
+load_dotenv()
 logger = logging.getLogger(__name__)
+
+# Default configurations from environment
+DEFAULT_QDRANT_URL = os.getenv("QDRANT_URL", "localhost:6333")
+DEFAULT_QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
+DEFAULT_DEVICE = os.getenv("LLM_DEVICE", "cpu")
 
 
 class VietnameseLegalSearch:
@@ -20,21 +29,37 @@ class VietnameseLegalSearch:
 
     def __init__(
         self,
-        host: str = "http://localhost:6333",
+        host: str = None,
         collection_name: str = "vietnamese_legal_docs",
         model_name: str = "minhquan6203/paraphrase-vietnamese-law",
-        device: str = "cuda:0"
+        device: str = None,
+        api_key: str = None
     ):
         if self._initialized:
             return
 
-        self.host = host
+        device = device or DEFAULT_DEVICE
+        api_key = api_key or DEFAULT_QDRANT_API_KEY
+
         self.collection_name = collection_name
 
         logger.info(f"Initializing VietnameseLegalSearch...")
         logger.info(f"Loading embedding model: {model_name}")
 
-        self.client = QdrantClient(host, timeout=60)
+        # Connect to Qdrant (Cloud or local)
+        if api_key:
+            # Qdrant Cloud
+            qdrant_url = host or DEFAULT_QDRANT_URL
+            if not qdrant_url.startswith("http"):
+                qdrant_url = f"https://{qdrant_url}"
+            logger.info(f"Connecting to Qdrant Cloud: {qdrant_url}")
+            self.client = QdrantClient(url=qdrant_url, api_key=api_key, timeout=60)
+        else:
+            # Local Qdrant
+            qdrant_url = host or f"http://{DEFAULT_QDRANT_URL}"
+            logger.info(f"Connecting to local Qdrant: {qdrant_url}")
+            self.client = QdrantClient(qdrant_url, timeout=60)
+
         self.model = SentenceTransformer(model_name, device=device)
 
         self._initialized = True

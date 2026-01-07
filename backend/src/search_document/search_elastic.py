@@ -1,11 +1,17 @@
+import os
 import json
 from elasticsearch import Elasticsearch
+from dotenv import load_dotenv
 
+load_dotenv()
+
+# Get Elasticsearch URL from environment
+ELASTICSEARCH_URL = os.getenv("ELASTICSEARCH_URL", "localhost:9200")
 
 # Connect to Elasticsearch
 try:
     es = Elasticsearch(
-        ["http://localhost:9200"],
+        [f"http://{ELASTICSEARCH_URL}"],
     )
 
     # Check connection

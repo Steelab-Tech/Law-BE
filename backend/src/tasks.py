@@ -1,8 +1,9 @@
-import asyncio
+import os
 import logging
 from copy import copy
 
 from celery import shared_task
+from dotenv import load_dotenv
 
 from utils import setup_logging
 from database import get_celery_app
@@ -11,8 +12,12 @@ from brain import detect_route, llm_chat_complete, detect_user_intent, gen_doc_p
 from models import update_chat_conversation, get_conversation_messages
 import requests
 
+load_dotenv()
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Backend API URL (use localhost in Docker network context)
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8002")
 
 celery_app = get_celery_app(__name__)
 celery_app.autodiscover_tasks()
@@ -46,7 +51,7 @@ def bot_answer_message(history, message):
     logger.info(f"User intent: {user_intent}")
 
     # Call api retrieval relevance document
-    url = "http://localhost:8002/retrieval"
+    url = f"{BACKEND_API_URL}/retrieval"
     payload = {
         "query": user_intent,
         "top_k_search": 30,

@@ -1,17 +1,25 @@
+import os
+from dotenv import load_dotenv
 from search_document.search_with_bge import QdrantSearch_bge
 from search_document.search_with_e5 import QdrantSearch_e5
 from search_document.search_elastic import search_data
 
+load_dotenv()
+
+# Get Qdrant URL from environment
+QDRANT_URL = os.getenv("QDRANT_URL", "localhost:6333")
+QDRANT_HOST = f"http://{QDRANT_URL}"
+
 # Initialize search instances at module level for reuse
 bge_search_instance = QdrantSearch_bge(
-        host="http://localhost:6333",
-        collection_name= "law_with_bge_round1",
+        host=QDRANT_HOST,
+        collection_name="law_with_bge_round1",
         model_name="BAAI/bge-m3",
         use_fp16=True
     )
 
 e5_search_instance = QdrantSearch_e5(
-        host="http://localhost:6333",
+        host=QDRANT_HOST,
         collection_name="law_with_e5_emb_not_finetune",
         model_name="intfloat/multilingual-e5-large",
         use_fp16=True

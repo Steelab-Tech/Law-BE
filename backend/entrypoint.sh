@@ -1,8 +1,10 @@
 #!/bin/bash
 
-# Chạy app.py trong nền
+cd /app/src
+
+# Run FastAPI in background
 python app.py &
 
-# Chạy Celery worker
-celery -A tasks.celery_app worker --loglevel=debug
+# Run Celery worker
+celery -A tasks.celery_app worker --loglevel=info
 

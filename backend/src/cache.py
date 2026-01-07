@@ -1,8 +1,14 @@
+import os
 import logging
 import redis
+from dotenv import load_dotenv
 from utils import generate_request_id
 
-redis_client = redis.StrictRedis(host="localhost", port="6379", db=0)
+load_dotenv()
+
+REDIS_URL = os.getenv("REDIS_URL", "localhost:6379")
+redis_host, redis_port = REDIS_URL.split(":")
+redis_client = redis.StrictRedis(host=redis_host, port=int(redis_port), db=0)
 
 
 def get_conversation_key(bot_id, user_id):
