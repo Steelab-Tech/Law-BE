@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir \
 COPY src/ ./src/
 COPY entrypoint.sh .
 
-RUN chmod +x entrypoint.sh
+# Convert CRLF to LF (Windows compatibility) and make executable
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 EXPOSE 8002
 

@@ -1,19 +1,43 @@
 """
 Import vietnamese-legal-corpus-20k-raw into Qdrant
 Dataset: https://huggingface.co/datasets/52100303-TranPhuocSang/vietnamese-legal-corpus-20k-raw
+
+Overnight run script - includes:
+- Progress checkpointing (resume if interrupted)
+- Logging to file
+- Error handling
 """
 import torch
 import re
+import os
+import json
+import logging
+from datetime import datetime
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient, models
 from tqdm import tqdm
 
+# ===== LOGGING SETUP =====
+log_file = f"import_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Checkpoint file for resume capability
+CHECKPOINT_FILE = "import_checkpoint.json"
+
 # ===== CONFIG =====
 MODEL_NAME = "minhquan6203/paraphrase-vietnamese-law"
 COLLECTION_NAME = "vietnamese_legal_docs"
 VECTOR_SIZE = 768
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 
 # Chunking config
 CHUNK_SIZE = 512  # Characters per chunk
@@ -154,47 +178,88 @@ for idx, doc in enumerate(tqdm(dataset['train'], desc="Chunking")):
 
 print(f"Total chunks created: {len(all_chunks)}")
 
-# ===== STEP 6: Embedding and upload =====
-print("\nStep 2: Embedding and uploading to Qdrant...")
-total_uploaded = 0
+# ===== STEP 6: Embedding + Upload with checkpointing =====
+logger.info("Step 2: Embedding and uploading to Qdrant...")
+EMBED_BATCH = 256
+UPLOAD_BATCH = 5000
+total_chunks = len(all_chunks)
 
-for i in tqdm(range(0, len(all_chunks), BATCH_SIZE), desc="Uploading"):
-    batch = all_chunks[i:i+BATCH_SIZE]
+# Load checkpoint if exists
+start_idx = 0
+if os.path.exists(CHECKPOINT_FILE):
+    with open(CHECKPOINT_FILE, 'r') as f:
+        checkpoint = json.load(f)
+        start_idx = checkpoint.get('last_uploaded', 0)
+        if start_idx > 0:
+            logger.info(f"Resuming from checkpoint: {start_idx}/{total_chunks}")
 
-    # Create embeddings
-    texts = [chunk['text'] for chunk in batch]
-    embeddings = model.encode(
-        texts,
-        batch_size=BATCH_SIZE,
-        normalize_embeddings=True,
-        show_progress_bar=False
-    )
+# Process in batches with checkpoint saves
+all_embeddings = []
+last_checkpoint_save = start_idx
 
-    # Create points
-    points = []
-    for j, (chunk, embedding) in enumerate(zip(batch, embeddings)):
-        points.append(
-            models.PointStruct(
-                id=i + j,
-                vector=embedding.tolist(),
-                payload=chunk
-            )
+try:
+    # Embedding phase
+    logger.info(f"Embedding {total_chunks - start_idx} remaining chunks...")
+    for i in tqdm(range(start_idx, total_chunks, EMBED_BATCH), desc="Embedding", initial=start_idx//EMBED_BATCH, total=total_chunks//EMBED_BATCH):
+        batch_texts = [chunk['text'] for chunk in all_chunks[i:i+EMBED_BATCH]]
+        batch_emb = model.encode(
+            batch_texts,
+            batch_size=EMBED_BATCH,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+            device='cuda' if torch.cuda.is_available() else 'cpu'
         )
+        all_embeddings.extend(batch_emb)
 
-    # Upload batch
-    client.upsert(COLLECTION_NAME, points)
-    total_uploaded += len(points)
+    logger.info(f"Embeddings done: {len(all_embeddings)}")
 
-    # Clear GPU memory periodically
-    if torch.cuda.is_available() and (i // BATCH_SIZE) % 50 == 0:
-        torch.cuda.empty_cache()
+    # Upload phase
+    logger.info("Uploading to Qdrant...")
+    for i in tqdm(range(0, len(all_embeddings), UPLOAD_BATCH), desc="Uploading"):
+        actual_idx = start_idx + i
+        end = min(i + UPLOAD_BATCH, len(all_embeddings))
+
+        points = [
+            models.PointStruct(
+                id=actual_idx + j,
+                vector=all_embeddings[i + j].tolist(),
+                payload=all_chunks[actual_idx + j]
+            )
+            for j in range(end - i)
+        ]
+
+        client.upsert(COLLECTION_NAME, points)
+
+        # Save checkpoint every 50k uploads
+        if (actual_idx + end - i) - last_checkpoint_save >= 50000:
+            with open(CHECKPOINT_FILE, 'w') as f:
+                json.dump({'last_uploaded': actual_idx + end - i}, f)
+            last_checkpoint_save = actual_idx + end - i
+            logger.info(f"Checkpoint saved: {last_checkpoint_save}/{total_chunks}")
+
+    # Clean up checkpoint on success
+    if os.path.exists(CHECKPOINT_FILE):
+        os.remove(CHECKPOINT_FILE)
+
+except KeyboardInterrupt:
+    logger.warning("Interrupted! Saving checkpoint...")
+    with open(CHECKPOINT_FILE, 'w') as f:
+        json.dump({'last_uploaded': last_checkpoint_save}, f)
+    logger.info(f"Checkpoint saved at {last_checkpoint_save}. Run script again to resume.")
+    exit(1)
+except Exception as e:
+    logger.error(f"Error: {e}")
+    with open(CHECKPOINT_FILE, 'w') as f:
+        json.dump({'last_uploaded': last_checkpoint_save}, f)
+    raise
 
 # ===== DONE =====
 final_count = client.count(COLLECTION_NAME).count
-print(f"\n{'='*50}")
-print(f"DONE!")
-print(f"Collection: {COLLECTION_NAME}")
-print(f"Total chunks indexed: {final_count}")
-print(f"Model: {MODEL_NAME}")
-print(f"Chunk size: {CHUNK_SIZE} chars, Overlap: {CHUNK_OVERLAP} chars")
-print(f"{'='*50}")
+logger.info("="*50)
+logger.info("DONE!")
+logger.info(f"Collection: {COLLECTION_NAME}")
+logger.info(f"Total chunks indexed: {final_count}")
+logger.info(f"Model: {MODEL_NAME}")
+logger.info(f"Chunk size: {CHUNK_SIZE} chars, Overlap: {CHUNK_OVERLAP} chars")
+logger.info(f"Log file: {log_file}")
+logger.info("="*50)
